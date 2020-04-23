@@ -1,12 +1,15 @@
-% x = [phi;
-%     theta;
-%     psi;
-%     p;
-%     q;
-%     r;
-%     u;
-%     v;
-%     w;
+% SS derivation from: https://www.kth.se/polopoly_fs/1.588039.1550155544!/Thesis%20KTH%20-%20Francesco%20Sabatino.pdf
+% Some constants from: http://lup.lub.lu.se/luur/download?func=downloadFile&recordOId=8847641&fileOId=8859343
+
+% x = [phi; = y_angle
+%     theta;= z_angle
+%     psi;  = x_angle
+%     p;    = phi_dot
+%     q;    = theta_dot
+%     r;    = psi_dot
+%     u;    = x_dot
+%     v;    = y_dot
+%     w;    = z_dot
 %     x;
 %     y;
 %     z];
@@ -17,6 +20,7 @@ m = 0.5;            % kg
 Ix = 460 * 10^-6;   % N-m-s^2
 Iy = 460 * 10^-6;   % N-m-s^2
 Iz = 920 * 10^-6;   % N-m-s^2
+motor_radius = 0.1; % m
 
 %%
 % Define state matrices
@@ -61,7 +65,12 @@ time = 10;
 steps = round(time / dt);
 x = zeros(size(A, 1), steps);
 x_dot = zeros(size(A, 1), steps);
-x(:,k) = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+x(:,k) = [0; 0; 0; 0; 0; 0; 0; 1; 1; 0; 0; 10];
+goal = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+
+p = [-1, -1, -1, -1, -1+1i, -1-1i ,-1+1i, -1-1i, -2+1i, -2-1i, -2+1i, -2-1i];
+p = [-1, -1, -1, -1, -2, -2, -2, -02];
+k_ctrl = place(A, B, p);
 
 %%
 % Thrusts from each motor, [FL, FR, BR, BL] in N
@@ -73,7 +82,6 @@ r_left = [0 1 1 0];
 p_fwd = [0 0 1 1];
 p_back = [1 1 0 0];
 u_rotors = [1, 1, 1, 1];
-motor_radius = 0.1;         % m
 
 % Total motor force
 f_m = sum(u_rotors);
@@ -85,8 +93,9 @@ t_y = sum(u_rotors.*r_right - u_rotors.*r_left);
 t_z = sum(u_rotors.*y_CW - u_rotors.*y_CCW);
 
 %%
-u_val = 0.001;
-u = [u_val; 0; 0; 0];
+u_val = 0.00001;
+% [f_sum, f_y, -f_x, yaw]
+u = [0; 0; u_val; 0];
 
 % A is not invertible, so this method fails
 %A_dt = expm(A*dt);
@@ -95,7 +104,8 @@ u = [u_val; 0; 0; 0];
 
 %%
 for k = 1:steps
-    x_dot(:,k) = A*x(:,k) + B*u;
+    u(:,k) = -k_ctrl * (x(:,k) - goal);
+    x_dot(:,k) = A*x(:,k) + B*u(:,k);
     x(:,k+1) = x_dot(:,k) * dt + x(:,k);
 end
 
@@ -103,4 +113,10 @@ plt_x = x(10,:);
 plt_y = x(11,:);
 plt_z = x(12,:);
 
-plot3(plt_x, plt_y
+figure(1);
+plot3(plt_x, plt_y, plt_z);
+title('Quadrotor position in 3-space');
+xlabel('x (m)');
+ylabel('y (m)');
+zlabel('z (m)');
+grid();

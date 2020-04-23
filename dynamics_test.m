@@ -65,7 +65,11 @@ time = 10;
 steps = round(time / dt);
 x = zeros(size(A, 1), steps);
 x_dot = zeros(size(A, 1), steps);
-x(:,k) = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+x(:,k) = [0; 0; 0; 0; 0; 0; 0; 1; 1; 0; 0; 10];
+goal = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+
+p = [-1, -1, -1, -1, -1+1i, -1-1i ,-1+1i, -1-1i, -2+1i, -2-1i, -2+1i, -2-1i];
+k_ctrl = place(A, B, p);
 
 %%
 % Thrusts from each motor, [FL, FR, BR, BL] in N
@@ -99,7 +103,8 @@ u = [0; 0; u_val; 0];
 
 %%
 for k = 1:steps
-    x_dot(:,k) = A*x(:,k);% + B*u;
+    u(:,k) = -k_ctrl * (x(:,k) - goal);
+    x_dot(:,k) = A*x(:,k) + B*u(:,k);
     x(:,k+1) = x_dot(:,k) * dt + x(:,k);
 end
 
