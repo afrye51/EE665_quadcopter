@@ -24,7 +24,7 @@ motor_radius = 0.1; % m
 
 %%
 % Define state matrices
-A = [0 0 0 1 0 0 0 0 0 0 0 0;...
+A_lin = [0 0 0 1 0 0 0 0 0 0 0 0;...
     0 0 0 0 1 0 0 0 0 0 0 0;...
     0 0 0 0 0 1 0 0 0 0 0 0;...
     0 0 0 0 0 0 0 0 0 0 0 0;...
@@ -50,12 +50,12 @@ B = [0 0 0 0;...
     0 0 0 0;...
     0 0 0 0];
 
-C = eye(size(A));
+C = eye(size(A_lin));
 
 % check observability and controllability
-Obs = obsv(A, C);
+Obs = obsv(A_lin, C);
 rank(Obs)
-Ctr = ctrb(A, B);
+Ctr = ctrb(A_lin, B);
 rank(Ctr)
 
 % Initialization
@@ -63,13 +63,18 @@ dt = 0.1;
 k = 1;
 time = 10;
 steps = round(time / dt);
-x = zeros(size(A, 1), steps);
-x_dot = zeros(size(A, 1), steps);
-x(:,k) = [0; 0; 0; 0; 0; 0; 0; 1; 1; 0; 0; 10];
+x = zeros(size(A_lin, 1), steps);
+x_dot = zeros(size(A_lin, 1), steps);
+x(:,k) = [1; 0.1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+
+x_uns = zeros(size(A_lin, 1), steps);
+x_dot_uns = zeros(size(A_lin, 1), steps);
+x_uns(:,k) = [1; 0.1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+
 goal = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
 p = [-1, -1, -1, -1, -1+1i, -1-1i ,-1+1i, -1-1i, -2+1i, -2-1i, -2+1i, -2-1i];
-k_ctrl = place(A, B, p);
+k_ctrl = place(A_lin, B, p);
 
 %%
 % Thrusts from each motor, [FL, FR, BR, BL] in N
@@ -103,19 +108,30 @@ u = [0; 0; u_val; 0];
 
 %%
 for k = 1:steps
+    
     u(:,k) = -k_ctrl * (x(:,k) - goal);
-    x_dot(:,k) = A*x(:,k) + B*u(:,k);
+    x_dot(:,k) = A_lin*x(:,k) + B*u(:,k);
     x(:,k+1) = x_dot(:,k) * dt + x(:,k);
+    
+    x_dot_uns(:,k) = A_lin*x_uns(:,k);
+    x_uns(:,k+1) = x_dot_uns(:,k) * dt + x_uns(:,k);
 end
 
 plt_x = x(10,:);
 plt_y = x(11,:);
 plt_z = x(12,:);
 
+plt_x_uns = x_uns(10,:);
+plt_y_uns = x_uns(11,:);
+plt_z_uns = x_uns(12,:);
+
 figure(1);
 plot3(plt_x, plt_y, plt_z);
+hold on
+plot3(plt_x_uns, plt_y_uns, plt_z_uns);
 title('Quadrotor position in 3-space');
 xlabel('x (m)');
 ylabel('y (m)');
 zlabel('z (m)');
+legend('Stabilized system', 'Unstable system');
 grid();

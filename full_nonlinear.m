@@ -1,5 +1,6 @@
 % SS derivation from: https://www.kth.se/polopoly_fs/1.588039.1550155544!/Thesis%20KTH%20-%20Francesco%20Sabatino.pdf
 % Some constants from: http://lup.lub.lu.se/luur/download?func=downloadFile&recordOId=8847641&fileOId=8859343
+% Wind is not included at this time
 
 % x = [phi; = y_angle
 %     theta;= z_angle
@@ -59,17 +60,23 @@ Ctr = ctrb(A, B);
 rank(Ctr)
 
 % Initialization
-dt = 0.1;
+dt = 0.01;
 k = 1;
 time = 10;
 steps = round(time / dt);
+u = zeros(4, steps);
+e = zeros(size(A, 1), steps);
 x = zeros(size(A, 1), steps);
 x_dot = zeros(size(A, 1), steps);
-x(:,k) = [0; 0; 0; 0; 0; 0; 0; 1; 1; 0; 0; 10];
+x(:,k) = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+
+x_bar = zeros(size(A, 1), steps);
+x_dot_bar = zeros(size(A, 1), steps);
+x_bar(:,k) = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+
 goal = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
-p = [-1, -1, -1, -1, -1+1i, -1-1i ,-1+1i, -1-1i, -2+1i, -2-1i, -2+1i, -2-1i];
-p = [-1, -1, -1, -1, -2, -2, -2, -02];
+p = [-0.1, -0.1, -0.1, -0.1, -0.1+0.1i, -0.1-0.1i ,-0.1+0.1i, -0.1-0.1i, -0.2+0.1i, -0.2-0.1i, -0.2+0.1i, -0.2-0.1i];
 k_ctrl = place(A, B, p);
 
 %%
@@ -95,7 +102,7 @@ t_z = sum(u_rotors.*y_CW - u_rotors.*y_CCW);
 %%
 u_val = 0.00001;
 % [f_sum, f_y, -f_x, yaw]
-u = [0; 0; u_val; 0];
+u(:,k) = [9.9; 0; 0; 0];
 
 % A is not invertible, so this method fails
 %A_dt = expm(A*dt);
@@ -103,9 +110,67 @@ u = [0; 0; u_val; 0];
 %C_dt = C;
 
 %%
+% x = [phi; = y_angle
+%     theta;= z_angle
+%     psi;  = x_angle
+%     p;    = phi_dot
+%     q;    = theta_dot
+%     r;    = psi_dot
+%     u;    = x_dot
+%     v;    = y_dot
+%     w;    = z_dot
+%     x;
+%     y;
+%     z];
 for k = 1:steps
-    u(:,k) = -k_ctrl * (x(:,k) - goal);
-    x_dot(:,k) = A*x(:,k) + B*u(:,k);
+    % Nonlinear system state
+    phi = x(1,k);
+    theta = x(2,k);
+    psi = x(3,k);
+    p = x(4,k);
+    q = x(5,k);
+    r = x(6,k);
+    u_ = x(7,k);
+    v = x(8,k);
+    w = x(9,k);
+    
+    F = u(1,k);
+    Tx = u(2,k);
+    Ty = u(3,k);
+    Tz = u(4,k);
+    
+    Fwx = 0;
+    Fwy = 0;
+    Fwz = 0;
+    Twx = 0;
+    Twy = 0;
+    Twz = 0;
+    
+    Ax_true = [p + r*cos(phi)*tan(theta) + q*sin(phi)*tan(theta);...
+        q*cos(phi) - r*sin(phi);...
+        r*cos(phi)/cos(theta) + q*sin(phi)/cos(theta);...
+        (Iy-Iz)/Ix*r*q + (Tx+Twx)/Ix;...
+        (Iz-Ix)/Iy*p*r + (Ty+Twy)/Iy;...
+        (Ix-Iy)/Iz*p*q + (Tz+Twz)/Iz;...
+        r*v - q*w - g*sin(theta) + Fwx/m;...
+        p*w - r*u_ - g*sin(phi)*cos(theta) + Fwy/m;...
+        q*u_ - p*v - g*cos(phi)*cos(theta) + (Fwz -F)/m;...
+        w*(sin(phi)*sin(psi) + cos(phi)*cos(psi)*sin(theta))...
+            - v*(cos(phi)*sin(psi) + cos(psi)*sin(phi)*sin(theta))...
+            + u_*cos(psi)*cos(theta);...
+        v*(cos(phi)*cos(psi) + sin(phi)*sin(psi)*sin(theta))...
+            - w*(sin(phi)*cos(psi) + sin(psi)*cos(phi)*sin(theta))...
+            + u_*cos(psi)*cos(theta);...
+        w*cos(psi)*cos(theta) - u_*sin(theta) + v*cos(theta)*sin(phi)];
+    
+    % Linear controller estimate
+    %u(:,k) = -k_ctrl * (x(:,k) - goal);
+    %x_dot_bar(:,k) = A*x(:,k) + B*u(:,k);
+    %x_bar(:,k+1) = x_dot_bar(:,k) * dt + x_bar(:,k);
+    
+    e(:,k) = x(:,k) - goal;
+    u(:,k) = -k_ctrl * e(:,k) + [g*m 0 0 0]';
+    x_dot(:,k) = Ax_true + B*u(:,1);
     x(:,k+1) = x_dot(:,k) * dt + x(:,k);
 end
 
@@ -113,10 +178,17 @@ plt_x = x(10,:);
 plt_y = x(11,:);
 plt_z = x(12,:);
 
+%plt_x_bar = x_bar(10,:);
+%plt_y_bar = x_bar(11,:);
+%plt_z_bar = x_bar(12,:);
+
 figure(1);
 plot3(plt_x, plt_y, plt_z);
+hold on
+%plot3(plt_x_bar, plt_y_bar, plt_z_bar);
 title('Quadrotor position in 3-space');
 xlabel('x (m)');
 ylabel('y (m)');
 zlabel('z (m)');
+%legend('True state', 'Estimated state');
 grid();
