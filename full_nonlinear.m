@@ -68,15 +68,19 @@ u = zeros(4, steps);
 e = zeros(size(A, 1), steps);
 x = zeros(size(A, 1), steps);
 x_dot = zeros(size(A, 1), steps);
-x(:,k) = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+x(:,k) = [0.1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
 x_bar = zeros(size(A, 1), steps);
 x_dot_bar = zeros(size(A, 1), steps);
 x_bar(:,k) = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
-goal = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+goal = [0.1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
-p = [-0.1, -0.1, -0.1, -0.1, -0.1+0.1i, -0.1-0.1i ,-0.1+0.1i, -0.1-0.1i, -0.2+0.1i, -0.2-0.1i, -0.2+0.1i, -0.2-0.1i];
+p_r = -2;
+p_i1 = 0.5;
+p_i2 = 1;
+p = [p_r, p_r, p_r, p_r, p_r+p_i1, p_r-p_i1, p_r+p_i1, p_r-p_i1,...
+    p_r+p_i2, p_r-p_i2, p_r+p_i2, p_r-p_i2];
 k_ctrl = place(A, B, p);
 
 %%

@@ -37,6 +37,20 @@ A_unstab = [0 0 0 1 0 0 0 0 0 0 0 0;...
     0 0 0 0 0 0 0 1 0 0 0 0;...
     0 0 0 0 0 0 0 0 1 0 0 0];
 
+A_unctrl = [0 0 0 1 0 0 0 0 0 0 0 0 0;...
+    0 0 0 0 1 0 0 0 0 0 0 0 0;...
+    0 0 0 0 0 1 0 0 0 0 0 0 0;...
+    0 0 0 0 0 0 0 0 0 0 0 0 0;...
+    0 0 0 0 0 0 0 0 0 0 0 0 0;...
+    0 0 0 0 0 0 0 0 0 0 0 0 0;...
+    0 -g 0 0 0 0 0 0 0 0 0 0 0;...
+    g 0 0 0 0 0 0 0 0 0 0 0 0;...
+    0 0 0 0 0 0 0 0 0 0 0 0 0;...
+    0 0 0 0 0 0 1 0 0 0 0 0 0;...
+    0 0 0 0 0 0 0 1 0 0 0 0 0;...
+    0 0 0 0 0 0 0 0 1 0 0 0 0;...
+    0 0 0 0 0 0 0 0 0 0 0 0 1];
+
 B_ctrl = [0 0 0 0;...
     0 0 0 0;...
     0 0 0 0;...
@@ -61,17 +75,38 @@ B_unctrl = [0 0 0 0;...
     1/m 0 0 0;...
     0 0 0 0;...
     0 0 0 0;...
+    0 0 0 0;...
     0 0 0 0];
 
 C = eye(size(A));
-
+C_unctrl = eye(size(A_unctrl));
 % check observability and controllability
-Obs = obsv(A_unstab, C);
-rank(Obs)
-Ctr = ctrb(A_unstab, B_ctrl);
-rank(Ctr)
-Ctr = ctrb(A_unstab, B_unctrl);
-rank(Ctr)
+% Reference goal rank
+fprintf('Controllable system\n');
+fprintf('Number of states is: %d\n', size(A_unstab, 1));
+fprintf('Rank of Controllability Matrix is: %d\n', rank(ctrb(A_unstab, B_ctrl)));
+fprintf('Rank of Observability Matrix is: %d\n', rank(obsv(A_unstab, C)));
+
+fprintf('\n\nUncontrollable system\n');
+fprintf('Number of states is: %d\n', size(A_unctrl, 1));
+fprintf('Rank of Controllability Matrix is: %d\n', rank(ctrb(A_unctrl, B_unctrl)));
+fprintf('Rank of Observability Matrix is: %d\n', rank(obsv(A_unctrl, eye(size(A_unctrl)))));
+
+Ctr = ctrb(A_unctrl, B_unctrl);
+extra_row = [0 0 0 0 0 0 0 0 0 0 0 0 1]';
+Q = horzcat(Ctr(:,1:8), Ctr(:,10:11), Ctr(:,14:15), extra_row);
+P = Q^-1;
+A_rectrl = P*A_unctrl*(P^-1);
+B_rectrl = P*B_unctrl;
+C_rectrl = eye(size(A_unctrl))*Q;
+A_rectrl = A_rectrl(1:12,1:12);
+B_rectrl = B_rectrl(1:12,:);
+C_rectrl = C_rectrl(:,1:12);
+
+fprintf('\nKalman-decomposed system\n');
+fprintf('Number of states is: %d\n', size(A_rectrl, 1));
+fprintf('Rank of Controllability Matrix is: %d\n', rank(ctrb(A_rectrl, B_rectrl)));
+fprintf('Rank of Observability Matrix is: %d\n', rank(obsv(A_rectrl, C_rectrl)));
 
 % Initialization
 dt = 0.1;
@@ -94,10 +129,26 @@ p_i2 = 1i;
 p = [p_r, p_r, p_r, p_r, p_r+p_i1, p_r-p_i1, p_r+p_i1, p_r-p_i1,...
     p_r+p_i2, p_r-p_i2, p_r+p_i2, p_r-p_i2];
 k_ctrl = place(A_unstab, B_ctrl, p);
-eig(A_unstab)
 A_stab = (A_unstab - B_ctrl * k_ctrl);
+
+fprintf('Eigenvalues of systems\n');
+fprintf('Unstabilized system Eigenvalues: ');
+eig(A_unstab)
+fprintf('\nStabilized system Eigenvalues: ');
 eig(A_stab)
 
+sys_cs = ss(A_stab, B_ctrl, C, 0);
+sys_cu = ss(A_unstab, B_ctrl, C, 0);
+
+figure();
+step(sys_cs)
+figure();
+step(sys_cu)
+
+figure();
+pzmap(sys_cs)
+figure();
+pzmap(sys_cu)
 
 %%
 % Thrusts from each motor, [FL, FR, BR, BL] in N
@@ -149,10 +200,10 @@ plt_x_uns = x_uns(10,:);
 plt_y_uns = x_uns(11,:);
 plt_z_uns = x_uns(12,:);
 
-figure(1);
+figure();
 
-% Plot Obsv, Stab system
-subplot(221);
+% Plot Stab system
+subplot(211);
 plot3(plt_x, plt_y, plt_z);
 title('Controllable, Stabilized system');
 xlabel('x (m)');
@@ -160,29 +211,12 @@ ylabel('y (m)');
 zlabel('z (m)');
 grid();
 
-% Plot Obsv, Stab system
-subplot(222);
-plot3(plt_x, plt_y, plt_z);
+% Plot Unstab system
+subplot(212);
+plot3(plt_x_uns, plt_y_uns, plt_z_uns);
 title('Controllable, Unstable system');
 xlabel('x (m)');
 ylabel('y (m)');
 zlabel('z (m)');
 grid();
 
-% Plot Obsv, Stab system
-subplot(223);
-plot3(plt_x, plt_y, plt_z);
-title('Uncontrollable, Stabilized system');
-xlabel('x (m)');
-ylabel('y (m)');
-zlabel('z (m)');
-grid();
-
-% Plot Obsv, Stab system
-subplot(224);
-plot3(plt_x, plt_y, plt_z);
-title('Uncontrollable, Unstable system');
-xlabel('x (m)');
-ylabel('y (m)');
-zlabel('z (m)');
-grid();
