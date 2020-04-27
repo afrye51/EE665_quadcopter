@@ -112,9 +112,9 @@ u_rotors = [1, 1, 1, 1];
 
 % Total motor force
 f_m = sum(u_rotors);
-% Torque about x (Pitch)
+% Torque about x (Roll)
 t_x = sum(u_rotors.*p_fwd - u_rotors.*p_back);
-% Torque about y (Roll)
+% Torque about y (Pitch)
 t_y = sum(u_rotors.*r_right - u_rotors.*r_left);
 % Torque about z (Yaw)
 t_z = sum(u_rotors.*y_CW - u_rotors.*y_CCW);

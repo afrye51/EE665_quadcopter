@@ -78,7 +78,7 @@ B_unctrl = [0 0 0 0;...
     0 0 0 0;...
     0 0 0 0];
 
-C = eye(size(A));
+C = eye(size(A_unstab));
 C_unctrl = eye(size(A_unctrl));
 % check observability and controllability
 % Reference goal rank
@@ -98,7 +98,7 @@ Q = horzcat(Ctr(:,1:8), Ctr(:,10:11), Ctr(:,14:15), extra_row);
 P = Q^-1;
 A_rectrl = P*A_unctrl*(P^-1);
 B_rectrl = P*B_unctrl;
-C_rectrl = eye(size(A_unctrl))*Q;
+C_rectrl = C_unctrl*(P^-1);
 A_rectrl = A_rectrl(1:12,1:12);
 B_rectrl = B_rectrl(1:12,:);
 C_rectrl = C_rectrl(:,1:12);
@@ -115,7 +115,7 @@ time = 10;
 steps = round(time / dt);
 x = zeros(size(A_unstab, 1), steps);
 x_dot = zeros(size(A_unstab, 1), steps);
-x(:,k) = [0.1; 0.1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+x(:,k) = [1; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
 x_uns = zeros(size(A_unstab, 1), steps);
 x_dot_uns = zeros(size(A_unstab, 1), steps);

@@ -60,24 +60,23 @@ Ctr = ctrb(A, B);
 rank(Ctr)
 
 % Initialization
-dt = 0.001;
+dt = 0.01;
 k = 1;
 time = 20;
 steps = round(time / dt);
 u = zeros(4, steps);
 e = zeros(size(A, 1), steps);
 x = zeros(size(A, 1), steps);
-lin_error = zeros(size(A, 1), steps);
 x_dot = zeros(size(A, 1), steps);
-x(:,k) = [1; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+x(:,k) = [0.1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
 x_bar = zeros(size(A, 1), steps);
 x_dot_bar = zeros(size(A, 1), steps);
 x_bar(:,k) = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
-goal = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+goal = [0.1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
-p_r = -2;
+p_r = -20;
 p_i1 = 0.5;
 p_i2 = 1;
 p = [p_r, p_r, p_r, p_r, p_r+p_i1, p_r-p_i1, p_r+p_i1, p_r-p_i1,...
@@ -158,8 +157,8 @@ for k = 1:steps
         (Iz-Ix)/Iy*p*r + (Ty+Twy)/Iy;...
         (Ix-Iy)/Iz*p*q + (Tz+Twz)/Iz;...
         r*v - q*w - g*sin(theta) + Fwx/m;...
-        p*w - r*u_ + g*sin(phi)*cos(theta) + Fwy/m;...
-        q*u_ - p*v + g*cos(phi)*cos(theta) + (Fwz -F)/m;...
+        p*w - r*u_ - g*sin(phi)*cos(theta) + Fwy/m;...
+        q*u_ - p*v - g*cos(phi)*cos(theta) + (Fwz -F)/m;...
         w*(sin(phi)*sin(psi) + cos(phi)*cos(psi)*sin(theta))...
             - v*(cos(phi)*sin(psi) + cos(psi)*sin(phi)*sin(theta))...
             + u_*cos(psi)*cos(theta);...
@@ -175,9 +174,9 @@ for k = 1:steps
     
     e(:,k) = x(:,k) - goal;
     u(:,k) = -k_ctrl * e(:,k) + [g*m 0 0 0]';
-    x_dot(:,k) = Ax_true + B*u(:,k);
+    x_dot(:,k) = A*x(:,k) + B*u(:,k);
     x(:,k+1) = x_dot(:,k) * dt + x(:,k);
-    lin_error(:,k) = Ax_true - A*x(:,k);
+    lin_error(:,k) = 
 end
 
 plt_x = x(10,:);
