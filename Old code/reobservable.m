@@ -101,29 +101,49 @@ dt = 0.1;
 k = 1;
 time = 10;
 steps = round(time / dt);
-x = zeros(size(A_unstab, 1), steps);
-x_dot = zeros(size(A_unstab, 1), steps);
-x(:,k) = [1; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
 
-x_uns = zeros(size(A_unstab, 1), steps);
-x_dot_uns = zeros(size(A_unstab, 1), steps);
-x_uns(:,k) = [0.1; 0.1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+x = zeros(size(A_reobs, 1), steps);
+x_dot = zeros(size(A_reobs, 1), steps);
+y = zeros(size(C_reobs, 1), steps);
+x(:,k) = [1; 1; 0; 0; 0; 0; 0; 0; 0];
 
-goal = [0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 10];
+x_uns = zeros(size(A_reobs, 1), steps);
+x_dot_uns = zeros(size(A_reobs, 1), steps);
+y_uns = zeros(size(C_reobs, 1), steps);
+x_uns(:,k) = [1; 1; 0; 0; 0; 0; 0; 0; 0];
+
+x_bar = zeros(size(A_reobs, 1), steps);
+x_dot_bar = zeros(size(A_reobs, 1), steps);
+y_bar = zeros(size(C_reobs, 1), steps);
+x_bar(:,k) = [1; 1; 0; 0; 0; 0; 10; 0; 0];
+
+goal = [0; 0; 0; 0; 0; 0; 0; 0; 0];
 
 p_r = -2;
 p_i1 = 0.5i;
 p_i2 = 1i;
-p = [p_r, p_r, p_r, p_r, p_r+p_i1, p_r-p_i1, p_r+p_i1, p_r-p_i1,...
-    p_r+p_i2, p_r-p_i2, p_r+p_i2, p_r-p_i2];
-k_ctrl = place(A_unstab, B_ctrl, p);
-A_stab = (A_unstab - B_ctrl * k_ctrl);
+p = [p_r, p_r, p_r, p_r+p_i1, p_r-p_i1, p_r+p_i1, p_r-p_i1,...
+    p_r+p_i2, p_r-p_i2];
+p = [-2, -3, -4, -5, -6, -7, -8, -9, -10];
+k_ctrl = place(A_reobs, B_reobs, p);
+A_stab = (A_reobs - B_reobs * k_ctrl);
+
+p_r = -2;
+p_i1 = 0.5i;
+p_i2 = 1i;
+p = [p_r, p_r, p_r, p_r+p_i1, p_r-p_i1, p_r+p_i1, p_r-p_i1,...
+    p_r+p_i2, p_r-p_i2];
+p = [-2, -3, -4, -5, -6, -7, -8, -9, -10];
+L_ctrl = place(A_reobs, C_reobs, p);
+A_est = (A_stab - L_ctrl * C_reobs);
 
 fprintf('Eigenvalues of systems\n');
 fprintf('Unstabilized system Eigenvalues: ');
-eig(A_unstab)
+eig(A_reobs)
 fprintf('\nStabilized system Eigenvalues: ');
 eig(A_stab)
+fprintf('\nEstimated system Eigenvalues: ');
+eig(A_est)
 
 % sys_cs = ss(A_stab, B_ctrl, C, 0);
 % sys_cu = ss(A_unstab, B_ctrl, C, 0);
@@ -171,40 +191,48 @@ u = [0; 0; u_val; 0];
 %%
 for k = 1:steps
     
-    u(:,k) = -k_ctrl * (x(:,k) - goal);
-    x_dot(:,k) = A_unstab*x(:,k) + B_ctrl*u(:,k);
+    % Create control signal from current state estimate
+    u(:,k) = -k_ctrl * (x_bar(:,k) - goal);
+    
+    % True system
+    y(:,k) = C_reobs * x(:,k);
+    x_dot(:,k) = A_reobs*x(:,k) + B_reobs*u(:,k);
     x(:,k+1) = x_dot(:,k) * dt + x(:,k);
     
-    x_dot_uns(:,k) = A_unstab*x_uns(:,k);
+    %Estimate
+    y_bar(:,k) = C_reobs * x_bar(:,k);
+    x_dot_bar(:,k) = A_reobs*x_bar(:,k) + B_reobs*u(:,k) + L_ctrl*(y(:,k) - y_bar(:,k));
+    x_bar(:,k+1) = x_dot_bar(:,k) * dt + x_bar(:,k);
+    
+    y_uns(:,k) = C_reobs * x_uns(:,k);
+    x_dot_uns(:,k) = A_reobs*x_uns(:,k);
     x_uns(:,k+1) = x_dot_uns(:,k) * dt + x_uns(:,k);
 end
 
 %% Plotting
-plt_x = x(10,:);
-plt_y = x(11,:);
-plt_z = x(12,:);
+plt_x = y(7,:);
+plt_y = y(8,:);
+plt_z = y(9,:);
 
-plt_x_uns = x_uns(10,:);
-plt_y_uns = x_uns(11,:);
-plt_z_uns = x_uns(12,:);
+plt_x_bar = y_bar(7,:);
+plt_y_bar = y_bar(8,:);
+plt_z_bar = y_bar(9,:);
+
+plt_x_uns = y_uns(7,:);
+plt_y_uns = y_uns(8,:);
+plt_z_uns = y_uns(9,:);
 
 figure();
 
 % Plot Stab system
-subplot(211);
 plot3(plt_x, plt_y, plt_z);
 title('Controllable, Stabilized system');
-xlabel('x (m)');
-ylabel('y (m)');
-zlabel('z (m)');
+xlabel('x (m/s)');
+ylabel('y (m/s)');
+zlabel('z (m/s)');
 grid();
+hold on
 
-% Plot Unstab system
-subplot(212);
-plot3(plt_x_uns, plt_y_uns, plt_z_uns);
-title('Controllable, Unstable system');
-xlabel('x (m)');
-ylabel('y (m)');
-zlabel('z (m)');
-grid();
+plot3(plt_x_bar, plt_y_bar, plt_z_bar);
+legend('True System', 'Estimated System');
 
